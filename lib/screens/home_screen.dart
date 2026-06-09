@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 // ┌─────────────────────────────────────────────────────────┐
 // │  ⚠️  CAMBIAR ESTA URL por la de tu backend en Render   │
 // └─────────────────────────────────────────────────────────┘
-const String API_URL = 'https://TU-BACKEND.onrender.com';
+const String API_URL = 'https://pregunta2examenparcial.onrender.com';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
