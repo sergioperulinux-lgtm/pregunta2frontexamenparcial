@@ -1,12 +1,10 @@
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
-.packages
 build/
 *.g.dart
 android/.gradle/
 android/local.properties
 ios/.symlinks/
-ios/Flutter/flutter_export_environment.sh
 .DS_Store
 *.log

@@ -9,8 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  image_picker: ^1.0.7    # Seleccionar imagen de galería / cámara
-  http: ^1.2.0             # Peticiones HTTP al backend Flask
+  # file_picker funciona mejor que image_picker en Flutter Web
+  file_picker: ^8.0.3
+  http: ^1.2.0
   cupertino_icons: ^1.0.6
 
 dev_dependencies:
