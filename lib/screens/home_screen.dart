@@ -1,12 +1,12 @@
 // lib/screens/home_screen.dart
-// ✅ Corregido para Flutter Web — usa file_picker en vez de image_picker
+// ✅ Flutter Web compatible — file_picker + CORS fixed
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 
-// ── URL del backend en Render ──────────────────────────────
+// ── URL del backend en Render ──────────────────────────────────
 const String API_URL = 'https://pregunta2examenparcial.onrender.com';
 
 class HomeScreen extends StatefulWidget {
@@ -22,7 +22,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _resultado;
   String?               _error;
 
-  // ── Color por clase ────────────────────────────────────────
   Color _colorClase(String clase) {
     if (clase.contains('Non'))      return const Color(0xFF27AE60);
     if (clase.contains('Very'))     return const Color(0xFFF39C12);
@@ -31,22 +30,20 @@ class _HomeScreenState extends State<HomeScreen> {
     return Colors.grey;
   }
 
-  // ── Seleccionar imagen con file_picker ─────────────────────
-  // file_picker abre el explorador de archivos nativo del navegador
+  // ── Seleccionar imagen ─────────────────────────────────────
   Future<void> _elegirImagen() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['jpg', 'jpeg', 'png'],
-        withData: true, // ← carga los bytes directamente, clave para Web
+        withData: true,
       );
-
       if (result != null && result.files.single.bytes != null) {
         setState(() {
-          _imagenBytes    = result.files.single.bytes!;
-          _nombreArchivo  = result.files.single.name;
-          _resultado      = null;
-          _error          = null;
+          _imagenBytes   = result.files.single.bytes!;
+          _nombreArchivo = result.files.single.name;
+          _resultado     = null;
+          _error         = null;
         });
       }
     } catch (e) {
@@ -60,21 +57,30 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() { _cargando = true; _error = null; _resultado = null; });
 
     try {
-      final b64  = base64Encode(_imagenBytes!);
+      final b64 = base64Encode(_imagenBytes!);
+
       final resp = await http.post(
         Uri.parse('$API_URL/predecir'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode({'imagen_base64': b64}),
-      ).timeout(const Duration(seconds: 60));
+      ).timeout(const Duration(seconds: 90));
 
       if (resp.statusCode == 200) {
         setState(() { _resultado = jsonDecode(resp.body); _cargando = false; });
       } else {
-        setState(() { _error = 'Error del servidor: ${resp.statusCode}'; _cargando = false; });
+        setState(() {
+          _error    = 'Error del servidor: ${resp.statusCode}\n${resp.body}';
+          _cargando = false;
+        });
       }
     } catch (e) {
       setState(() {
-        _error    = 'Error de conexión. El backend puede estar iniciando (espera 30s y reintenta).\n$e';
+        _error    = 'No se pudo conectar al backend.\n'
+                    'Si es la primera petición, el servidor puede estar\n'
+                    'iniciando (espera 60s y vuelve a intentar).\n\nDetalle: $e';
         _cargando = false;
       });
     }
@@ -86,17 +92,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text(
-          'Clasificador Alzheimer CNN',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Clasificador Alzheimer CNN',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF1565C0),
         centerTitle: true,
         elevation: 3,
       ),
       body: Center(
         child: ConstrainedBox(
-          // Limitar ancho en pantallas grandes (se ve mejor)
           constraints: const BoxConstraints(maxWidth: 700),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -119,7 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Card info ──────────────────────────────────────────────
   Widget _cardInfo() {
     return Container(
       width: double.infinity,
@@ -143,10 +145,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.bold,
                         fontSize: 16)),
                 SizedBox(height: 5),
-                Text(
-                  'Sube una imagen MRI cerebral para detectar\nel nivel de demencia por Alzheimer',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
-                ),
+                Text('Sube una imagen MRI cerebral para detectar\nel nivel de demencia por Alzheimer',
+                    style: TextStyle(color: Colors.white70, fontSize: 13)),
               ],
             ),
           ),
@@ -155,7 +155,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Card imagen ────────────────────────────────────────────
   Widget _cardImagen() {
     return Card(
       elevation: 2,
@@ -166,28 +165,20 @@ class _HomeScreenState extends State<HomeScreen> {
           width: double.infinity,
           height: 240,
           child: _imagenBytes != null
-              ? Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.memory(_imagenBytes!, fit: BoxFit.contain),
-                    // Nombre del archivo arriba
-                    Positioned(
-                      bottom: 0, left: 0, right: 0,
-                      child: Container(
-                        color: Colors.black45,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 4, horizontal: 8),
-                        child: Text(
-                          _nombreArchivo ?? '',
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 11),
+              ? Stack(fit: StackFit.expand, children: [
+                  Image.memory(_imagenBytes!, fit: BoxFit.contain),
+                  Positioned(
+                    bottom: 0, left: 0, right: 0,
+                    child: Container(
+                      color: Colors.black45,
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      child: Text(_nombreArchivo ?? '',
+                          style: const TextStyle(color: Colors.white, fontSize: 11),
                           textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+                          overflow: TextOverflow.ellipsis),
                     ),
-                  ],
-                )
+                  ),
+                ])
               : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -199,9 +190,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontSize: 15,
                             fontWeight: FontWeight.w500)),
                     const SizedBox(height: 4),
-                    Text('Formatos aceptados: JPG, JPEG, PNG',
-                        style:
-                            TextStyle(color: Colors.grey[400], fontSize: 12)),
+                    Text('Formatos: JPG, JPEG, PNG',
+                        style: TextStyle(color: Colors.grey[400], fontSize: 12)),
                   ],
                 ),
         ),
@@ -209,11 +199,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Botones acción ─────────────────────────────────────────
   Widget _botonesAccion() {
     return Column(
       children: [
-        // Botón principal para subir imagen
         SizedBox(
           width: double.infinity,
           height: 50,
@@ -231,7 +219,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        // Botón analizar
         SizedBox(
           width: double.infinity,
           height: 50,
@@ -255,27 +242,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Card cargando ──────────────────────────────────────────
   Widget _cardCargando() {
     return const Card(
       child: Padding(
         padding: EdgeInsets.all(28),
-        child: Column(
-          children: [
-            CircularProgressIndicator(color: Color(0xFF1565C0)),
-            SizedBox(height: 16),
-            Text('Analizando imagen con la CNN...',
-                style: TextStyle(fontSize: 14, color: Colors.grey)),
-            SizedBox(height: 4),
-            Text('Puede tardar hasta 60 segundos la primera vez',
-                style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
+        child: Column(children: [
+          CircularProgressIndicator(color: Color(0xFF1565C0)),
+          SizedBox(height: 16),
+          Text('Analizando imagen con la CNN...',
+              style: TextStyle(fontSize: 14, color: Colors.grey)),
+          SizedBox(height: 4),
+          Text('Primera vez puede tardar hasta 60 segundos',
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
+        ]),
       ),
     );
   }
 
-  // ── Card error ─────────────────────────────────────────────
   Widget _cardError() {
     return Card(
       color: Colors.red[50],
@@ -297,7 +280,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Card resultado ─────────────────────────────────────────
   Widget _cardResultado() {
     final clase       = _resultado!['clase_predicha'] as String;
     final confianza   = (_resultado!['confianza'] as num).toDouble();
@@ -306,140 +288,111 @@ class _HomeScreenState extends State<HomeScreen> {
     final probs       = _resultado!['probabilidades'] as Map<String, dynamic>;
     final color       = _colorClase(clase);
 
-    return Column(
-      children: [
-        // Resultado principal
-        Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: color, width: 2),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 32,
-                  backgroundColor: color.withOpacity(0.12),
-                  child:
-                      Icon(Icons.check_circle_outline, color: color, size: 38),
-                ),
-                const SizedBox(height: 14),
-                Text(clase,
-                    style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: color),
-                    textAlign: TextAlign.center),
-                const SizedBox(height: 8),
-                // Indicador de nivel (puntos)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    4,
-                    (i) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: CircleAvatar(
-                        radius: 7,
-                        backgroundColor:
-                            i <= nivel ? color : Colors.grey[300],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text('Confianza: ${confianza.toStringAsFixed(1)}%',
-                    style: TextStyle(fontSize: 16, color: Colors.grey[700])),
-                const SizedBox(height: 8),
-                Text(descripcion,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-              ],
-            ),
-          ),
+    return Column(children: [
+      Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: color, width: 2),
         ),
-
-        const SizedBox(height: 12),
-
-        // Barras de probabilidad
-        Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Probabilidades por clase',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 15)),
-                const SizedBox(height: 14),
-                ...probs.entries.map((e) {
-                  final prob     = (e.value as num).toDouble();
-                  final barColor = _colorClase(e.key);
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(e.key,
-                                style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500)),
-                            Text('${prob.toStringAsFixed(1)}%',
-                                style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: barColor)),
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: LinearProgressIndicator(
-                            value: prob / 100,
-                            minHeight: 10,
-                            backgroundColor: Colors.grey[200],
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(barColor),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+          child: Column(children: [
+            CircleAvatar(
+              radius: 32,
+              backgroundColor: color.withOpacity(0.12),
+              child: Icon(Icons.check_circle_outline, color: color, size: 38),
             ),
-          ),
+            const SizedBox(height: 14),
+            Text(clase,
+                style: TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.bold, color: color),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(4, (i) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: CircleAvatar(
+                  radius: 7,
+                  backgroundColor: i <= nivel ? color : Colors.grey[300],
+                ),
+              )),
+            ),
+            const SizedBox(height: 10),
+            Text('Confianza: ${confianza.toStringAsFixed(1)}%',
+                style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+            const SizedBox(height: 8),
+            Text(descripcion,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+          ]),
         ),
-
-        const SizedBox(height: 8),
-
-        // Aviso médico
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.amber[50],
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.amber),
-          ),
-          child: const Row(
+      ),
+      const SizedBox(height: 12),
+      Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.warning_amber_outlined, color: Colors.amber, size: 20),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Resultado orientativo. Siempre consultar a un médico especialista.',
-                  style: TextStyle(fontSize: 12, color: Colors.brown),
-                ),
-              ),
+              const Text('Probabilidades por clase',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 14),
+              ...probs.entries.map((e) {
+                final prob     = (e.value as num).toDouble();
+                final barColor = _colorClase(e.key);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(e.key, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                          Text('${prob.toStringAsFixed(1)}%',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: barColor)),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: prob / 100,
+                          minHeight: 10,
+                          backgroundColor: Colors.grey[200],
+                          valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ],
           ),
         ),
-        const SizedBox(height: 20),
-      ],
-    );
+      ),
+      const SizedBox(height: 8),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.amber[50],
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.amber),
+        ),
+        child: const Row(children: [
+          Icon(Icons.warning_amber_outlined, color: Colors.amber, size: 20),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Resultado orientativo. Siempre consultar a un médico especialista.',
+              style: TextStyle(fontSize: 12, color: Colors.brown),
+            ),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 20),
+    ]);
   }
 }

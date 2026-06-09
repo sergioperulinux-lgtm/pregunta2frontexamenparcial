@@ -8,3 +8,4 @@ android/local.properties
 ios/.symlinks/
 .DS_Store
 *.log
+pubspec.lock

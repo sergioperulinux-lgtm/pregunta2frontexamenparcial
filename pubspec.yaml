@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # file_picker funciona mejor que image_picker en Flutter Web
   file_picker: ^8.0.3
   http: ^1.2.0
   cupertino_icons: ^1.0.6
